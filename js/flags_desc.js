@@ -1,134 +1,227 @@
-function Flags(){
+class EventBus{
+	constructor(){
+		const _ = this;
 
-	this.flags = 21;
-	this.player = false;
-	this.started = false;
-	this.step = 0;
+		_.events = {};
+	}
+	add(event,fn){ // changeView, test
+		const _ = this;
+		if(!_.events[event]) _.events[event] = [];
+		_.events[event].push(fn);
+	}
+	trigger(event,data=null){
+		const _ = this;
+		console.warn("Сработало событие: " +event);
+		if(!_.events[event]) return;
+		for(let i = 0; i < _.events[event].length;i++){
+			_.events[event][i](data);
+		}
+	}
+	remove(event){
+		const _= this;
+		
+	}
 }
-//Функция которая вводит начальные переменные
+
+const Bus = new EventBus();
 
 
-Flags.prototype.exitGame = function (){
-	if(this.step == -1){
+class Player{
+	constructor(name){
+		const _ = this;
+		_.name  = name;
+		_.validateErrors = {
+			cnt: 0,
+			text: []
+		};
+		_.stepErrors = {
+			cnt:0,
+			step: []
+		}
+		_.steps = [];
+	}
+}
+class View{
+	constructor(){
+		Bus.add('enterName',this.enterName);
+	}
+	
+	changeView(){
+		console.log('Вид изменен');
+	}
+	showPlayerStep(params){}
+}
+class consoleView extends View{
+	constructor(){
+		super();
+	}
+	enterName(player){
+		player.name = prompt('Введите имя игрока');
+	}
+	showPlayerStep(params){
+		console.log(params.player.name+' походил: ' + params.step);
+	}
+}
+class alertView{
+	showPlayerStep(params){
+		console.log(params.player.name+' походил: ' + params.step);
+	}
+}
+class Flags{
+ constructor(view){
+ 	const _ = this;
+	Bus.add('validateError',_.validateError.bind(this));
+ 	
+	Bus.add('stepError',_.stepError.bind(this));
+
+ 	_.view = view;
+ 	_.errors = 0;
+ 	
+	_.flags = 21;
+	_.player = false;
+	_.started = false;
+	_.step = 0;
+	
+	_.player1 = new Player();
+	_.player2 = new Player();
+
+	Bus.trigger('enterName',_.player1);
+	Bus.trigger('enterName',_.player2);
+
+
+	
+
+	//_.player2 = new Player("PC");
+
+	_.currentPlayer = _.player1;
+	//this.showType = prompt('Введите способ отображения(alert|console|html)')
+ 	
+ }
+
+ validateError(data){
+ 	data.player.validateErrors['cnt']+=1;
+ 	data.player.validateErrors['text'].push(data.text);
+ }
+
+ stepError(data){
+ 	data.player.stepErrors['cnt']+=1;
+ 	data.player.stepErrors['step'].push(data.step);
+ }
+
+ incErrors(){
+ 	this.errors+=1;
+ }
+ exitGame(){
+ 	if(this.step == -1){
 		return true;
 	}	
 	return false;
-}	
-//Это функция выхода из игры, она завершает игру получив значение "-1" в поле ввода количества флажков.
+ }
+ validateStep(){
 
-
-Flags.prototype.validateStep = function (){
-	if(isNaN(this.step)) return false;
-	return true;
-}
-//Это функция проверки введенных данных на тип (число ли это)
-
-
-Flags.prototype.checkStep = function(){
-	if( (this.step != 1) && (this.step != 2) && (this.step != 3) ){
+	if(isNaN(this.step)){
+		Bus.trigger('validateError', {
+				text: this.rawStep,
+				player: this.currentPlayer
+		});	
 		return false;
-	}
+	} 
 	return true;
-}
-//Это функция проверки введенных данных на удовлетворение правилам игры (от 1 до 3)
+ }
+
+ checkStep(){
+ 	if( (this.step != 1) && (this.step != 2) && (this.step != 3) ){
+ 		Bus.trigger('stepError', {
+ 			step: this.step,
+ 			player: this.currentPlayer
+ 		})
+ 		return false;
+ 	}
+ 	return true
+ }
 
 
-Flags.prototype.showAlert = function (type){
-	if(type == 'validate'){
+ showAlert(type){
+ 	if(type == 'validate'){
 		console.error('Не корректный ввод. Введите число');
 	}
 	if(type == 'check'){
 		console.error('Не корректный ввод. Введите число от 1 до 3');
 	}
-}
-//Это функция, которая выводит предупреждение, если введенные данные не соответствуют требованиям
-
-
-Flags.prototype.changePlayer = function (){
+ }
+ changePlayer(){
 	this.player = !this.player;
-}
-//Эта функция меняет очередь хода
-
-
-Flags.prototype.showFlagsRest = function (){
- 	console.log( 'В игре осталось '+ this.cost +' флагов');
-}
-//Это функция, выводит количество оставшихся флагов в консоль
-
-
-Flags.prototype.showPlayerStep = function (){
 	if(!this.player){
-		console.log('Игрок 1 походил: ' + this.step);
+		this.currentPlayer = this.player1;
 	}else{
-		console.log('Игрок 2 походил: ' + this.step);
+		this.currentPlayer = this.player2;
 	}
-}
-//Эта функция выводит в консоль ход игрока
-
-
-Flags.prototype.checkWin = function (){
-	if(this.flags <= 3){
+ }
+ showFlagsRest(){
+ 	console.log( 'В игре осталось '+ this.cost +' флагов');
+ }
+ checkWin(){
+ 	if(this.flags <= 3){
 		return true;
 	}	
 	return false;
-}
-//Здесь идет проверка оставшихся флагов на количество, необходимое для победы
+ }
+ showWinner(){
+	console.warn('Победил '+ this.currentPlayer.name);
+	console.log(Bus);
+	console.log(this);
+ }
+ start(){
+ 	this.started = true;
 
 
-Flags.prototype.showWinner = function(){
-	if(!this.player){
-		console.warn('Победил Игрок 1');
-	}else{
-		console.warn('Победил Игрок 2');
-	}
-}
-//Эта функция объявляет победителя
-
-
-Flags.prototype.start = function(){
-	this.started = true;
-//Начало игры	
-	
-	
 	if(this.checkWin()){
 		this.showWinner();
 		return ;
 	}
-//Игра проводит проверку количества флагов на условие победы
-	
-	
-	this.step = prompt('Введите число от 1 до 3') * 1;
-//Запрос игрой у игрока хода, числа флагов
-	
+	this.rawStep = prompt('Введите число от 1 до 3');
+	this.step = this.rawStep;
+	if(this.step == 'change'){
+		Bus.trigger('enterName',this.currentPlayer);
+		return this.start();
+	}else{
+		this.step*=1;
+	}
 	
 	if( this.exitGame() ) return;
-//Проверка хода на условие выхода
-	
-	
+
 	if( !this.validateStep() ) {
-		this.showAlert('validate');
 		return this.start();
 	}
-//Далее идет проверка на правильность ввода, если ввели неправильно, то выходит предупреждение и ход перезапускается
-	
-	
 	if( !this.checkStep() ) {
-		this.showAlert('check');
+		Bus.trigger('showAlert','check');
 		return this.start();
 	}
-//Так же идет проверка на разрешенный ход, так же выходит предупреждение и ход перезапускается, если ход запрещен
-	
 
 	this.cost = this.flags-=this.step;
-//После хода игрока игра отнимает от общего количества флагов ход игрока
-	
-	
-	this.changePlayer();
-//Очередь хода меняется, ходит 2ой игрок
+
 	
 
-	this.showPlayerStep();
+	this.view.showPlayerStep({
+		player: this.currentPlayer,
+		step:this.step
+	});
 	this.showFlagsRest();
+	this.changePlayer();
 	return this.start();
-//Игра выводит ход игрока и количество оставшихся флагов и функция перезапускается.
+ }
 }
+
+
+
+let flags = new Flags(new consoleView());
+flags.start();
+
+
+
+
+
+
+
+
+
